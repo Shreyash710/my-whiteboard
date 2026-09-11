@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>My Local Whiteboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #232329;
+            --toolbar-bg: rgba(35, 35, 41, 0.85); /* Translucent background */
+            --text-color: #e4e4e7;
+            --border-color: #3f3f46;
+            --active-bg: #403e6a;
+            --active-text: #a5b4fc;
+            --hover-bg: #2f2f36;
+        }
+        body.light-theme {
+            --bg-color: #f3f4f6;
+            --panel-bg: #ffffff;
+            --toolbar-bg: rgba(255, 255, 255, 0.85); /* Translucent background */
+            --text-color: #1f2937;
+            --border-color: #d1d5db;
+            --active-bg: #e0e7ff;
+            --active-text: #4338ca;
+            --hover-bg: #f3f4f6;
+        }
+
+        body { margin: 0; overflow: hidden; background-color: var(--bg-color); font-family: sans-serif; user-select: none; color: var(--text-color); transition: background-color 0.2s; }
+        
+        /* Shifted Top Menus Higher */
+        #hamburger-container { position: absolute; top: 12px; left: 12px; z-index: 20; }
+        #menu-btn {
+            width: 36px; height: 36px; border-radius: 8px; background: var(--toolbar-bg);
+            border: 1px solid var(--border-color); color: var(--text-color); cursor: pointer;
+            display: flex; justify-content: center; align-items: center; font-size: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); backdrop-filter: blur(8px); transition: 0.2s;
+        }
+        #menu-btn:hover { background: var(--hover-bg); }
+        
+        #dropdown-menu {
+            position: absolute; top: 45px; left: 0; width: 220px;
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column; padding: 8px 0;
+            opacity: 0; pointer-events: none; transform: translateY(-10px); transition: 0.2s;
+        }
+        #dropdown-menu.show { opacity: 1; pointer-events: all; transform: translateY(0); }
+        .menu-item { padding: 10px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 14px; transition: 0.1s; }
+        .menu-item:hover { background: var(--hover-bg); }
+        .menu-item i { width: 16px; text-align: center; font-size: 16px; opacity: 0.8; }
+        .menu-divider { height: 1px; background: var(--border-color); margin: 6px 0; }
+        
+        /* Sleek Top Toolbar */
+        #toolbar {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            z-index: 10; background: var(--toolbar-bg); padding: 4px; border-radius: 8px;
+            display: flex; align-items: center; gap: 2px; border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); backdrop-filter: blur(8px);
+        }
+
+        #properties-panel {
+            position: absolute; top: 60px; left: 12px; z-index: 10;
+            background: var(--panel-bg); padding: 12px; border-radius: 8px;
+            border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px; 
+            width: 145px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        /* Buttons with tiny shortcut numbers */
+        button, label.icon-btn { 
+            position: relative;
+            width: 34px; height: 34px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; border: none; border-radius: 6px; background: transparent;
+            color: var(--text-color); font-size: 14px; transition: 0.2s;
+        }
+        .shortcut-badge {
+            position: absolute; bottom: 2px; right: 3px;
+            font-size: 8px; opacity: 0.5; font-family: sans-serif; pointer-events: none;
+        }
+
+        button:hover, label.icon-btn:hover { background-color: var(--hover-bg); }
+        .active { background-color: var(--active-bg) !important; color: var(--active-text) !important; }
+        .divider { width: 1px; height: 20px; background-color: var(--border-color); margin: 0 4px; }
+        
+        .prop-group { display: flex; flex-direction: column; gap: 6px; }
+        .prop-title { font-size: 11px; opacity: 0.8; font-weight: bold; }
+        .grid-row { display: flex; gap: 4px; flex-wrap: wrap; }
+        
+        .swatch { width: 22px; height: 22px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border-color); }
+        .swatch.selected { border-color: var(--text-color); box-shadow: 0 0 0 1px var(--text-color); }
+        .toggle-btn {
+            flex: 1; padding: 4px 0; background: var(--hover-bg); border: 1px solid var(--border-color);
+            border-radius: 4px; color: var(--text-color); cursor: pointer; text-align: center; font-size: 12px;
+        }
+        .toggle-btn.selected { background: var(--active-bg); color: var(--active-text); border-color: var(--active-text); }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        #image-loader { display: none; }
+
+        #bottom-left-panel {
+            position: absolute; bottom: 15px; left: 15px; z-index: 10;
+            display: flex; gap: 10px; align-items: center;
+        }
+        .bottom-group {
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; display: flex; align-items: center; padding: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #zoom-text { font-size: 12px; width: 40px; text-align: center; font-family: monospace; }
+        .bottom-group button { width: 28px; height: 28px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    
+    <div id="hamburger-container">
+        <button id="menu-btn"><i class="fa-solid fa-bars"></i></button>
+        <div id="dropdown-menu">
+            <div class="menu-item" id="menu-open"><i class="fa-regular fa-folder-open"></i> Open...</div>
+            <div class="menu-item" id="menu-save"><i class="fa-regular fa-floppy-disk"></i> Save As...</div>
+            <div class="menu-item" id="menu-export"><i class="fa-regular fa-image"></i> Export PNG...</div>
+            <div class="menu-divider"></div>
+            <div class="menu-item" id="menu-reset" style="color: #ef4444;"><i class="fa-solid fa-trash-can"></i> Reset canvas</div>
+            <div class="menu-divider"></div>
+            <div class="menu-item" id="menu-theme"><i class="fa-solid fa-moon"></i> Toggle Theme</div>
+        </div>
+    </div>
+
+    <div id="toolbar">
+        <button id="pan-tool" title="Hand (H)"><i class="fa-solid fa-hand"></i><span class="shortcut-badge">H</span></button>
+        <button id="select-tool" class="active" title="Selection (V or 1)"><i class="fa-solid fa-arrow-pointer"></i><span class="shortcut-badge">1</span></button>
+        <div class="divider"></div>
+        <button id="rect-tool" title="Rectangle (R or 2)"><i class="fa-regular fa-square"></i><span class="shortcut-badge">2</span></button>
+        <button id="circle-tool" title="Circle (C or 3)"><i class="fa-regular fa-circle"></i><span class="shortcut-badge">3</span></button>
+        <button id="arrow-tool" title="Arrow (A or 4)"><i class="fa-solid fa-arrow-right-long"></i><span class="shortcut-badge">4</span></button>
+        <button id="line-tool" title="Line (L or 5)"><i class="fa-solid fa-minus"></i><span class="shortcut-badge">5</span></button>
+        <div class="divider"></div>
+        <button id="draw-tool" title="Draw (P or 6)"><i class="fa-solid fa-pen"></i><span class="shortcut-badge">6</span></button>
+        <button id="text-tool" title="Text (T or 7)"><i class="fa-solid fa-font"></i><span class="shortcut-badge">7</span></button>
+        <label for="image-loader" class="icon-btn" title="Image (8)"><i class="fa-regular fa-image"></i><span class="shortcut-badge">8</span></label>
+        <input type="file" id="image-loader" accept="image/*">
+        <button id="eraser-tool" title="Eraser (E or 9)"><i class="fa-solid fa-eraser"></i><span class="shortcut-badge">9</span></button>
+        <div class="divider"></div>
+        <button id="laser-tool" title="Laser Pointer (K or 0)"><i class="fa-solid fa-wand-magic-sparkles"></i><span class="shortcut-badge">0</span></button>
+    </div>
+
+    <div id="properties-panel">
+        <div class="prop-group" id="pg-stroke">
+            <span class="prop-title">Stroke</span>
+            <div class="grid-row" id="stroke-colors">
+                <div class="swatch selected" id="primary-swatch" style="background:#ffffff" data-val="#ffffff"></div>
+                <div class="swatch" style="background:#ef4444" data-val="#ef4444"></div>
+                <div class="swatch" style="background:#22c55e" data-val="#22c55e"></div>
+                <div class="swatch" style="background:#3b82f6" data-val="#3b82f6"></div>
+                <div class="swatch" style="background:#f59e0b" data-val="#f59e0b"></div>
+            </div>
+        </div>
+        <div class="prop-group" id="pg-bg">
+            <span class="prop-title">Background</span>
+            <div class="grid-row" id="bg-colors">
+                <div class="swatch selected" style="background:transparent; border: 1px dashed var(--border-color);" data-val="transparent"></div>
+                <div class="swatch" style="background:#7f1d1d" data-val="#7f1d1d"></div>
+                <div class="swatch" style="background:#14532d" data-val="#14532d"></div>
+                <div class="swatch" style="background:#1e3a8a" data-val="#1e3a8a"></div>
+                <div class="swatch" style="background:#78350f" data-val="#78350f"></div>
+            </div>
+        </div>
+        <div class="prop-group" id="pg-width">
+            <span class="prop-title">Stroke width</span>
+            <div class="grid-row" id="stroke-widths">
+                <div class="toggle-btn" data-val="2"><i class="fa-solid fa-minus" style="font-size: 8px;"></i></div>
+                <div class="toggle-btn selected" data-val="5"><i class="fa-solid fa-minus" style="font-size: 12px;"></i></div>
+                <div class="toggle-btn" data-val="10"><i class="fa-solid fa-minus" style="font-size: 16px;"></i></div>
+            </div>
+        </div>
+        <div class="prop-group" id="pg-style">
+            <span class="prop-title">Stroke style</span>
+            <div class="grid-row" id="stroke-styles">
+                <div class="toggle-btn selected" data-val="solid"><i class="fa-solid fa-minus"></i></div>
+                <div class="toggle-btn" data-val="dashed"><i class="fa-solid fa-grip-lines"></i></div>
+                <div class="toggle-btn" data-val="dotted"><i class="fa-solid fa-ellipsis"></i></div>
+            </div>
+        </div>
+        <div class="prop-group" id="pg-font">
+            <span class="prop-title">Font family</span>
+            <div class="grid-row" id="font-families">
+                <div class="toggle-btn selected" data-val="sans-serif" style="font-family: sans-serif;">A</div>
+                <div class="toggle-btn" data-val="serif" style="font-family: serif;">A</div>
+                <div class="toggle-btn" data-val="monospace" style="font-family: monospace;">A</div>
+            </div>
+        </div>
+        <div class="prop-group" id="pg-size">
+            <span class="prop-title">Font size</span>
+            <div class="grid-row" id="font-sizes">
+                <div class="toggle-btn" data-val="16">S</div>
+                <div class="toggle-btn selected" data-val="24">M</div>
+                <div class="toggle-btn" data-val="32">L</div>
+                <div class="toggle-btn" data-val="48">XL</div>
+            </div>
+        </div>
+        <div class="prop-group" id="pg-align">
+            <span class="prop-title">Text align</span>
+            <div class="grid-row" id="text-aligns">
+                <div class="toggle-btn selected" data-val="left"><i class="fa-solid fa-align-left"></i></div>
+                <div class="toggle-btn" data-val="center"><i class="fa-solid fa-align-center"></i></div>
+                <div class="toggle-btn" data-val="right"><i class="fa-solid fa-align-right"></i></div>
+            </div>
+        </div>
+        <div class="prop-group" id="pg-opacity">
+            <span class="prop-title">Opacity</span>
+            <input type="range" id="opacity-slider" min="0" max="1" step="0.05" value="1">
+        </div>
+        <div class="prop-group" id="pg-layers">
+            <span class="prop-title">Layers</span>
+            <div class="grid-row">
+                <div class="toggle-btn" id="layer-bottom" title="Send to back"><i class="fa-solid fa-arrow-down-to-line"></i></div>
+                <div class="toggle-btn" id="layer-down" title="Send backward"><i class="fa-solid fa-arrow-down"></i></div>
+                <div class="toggle-btn" id="layer-up" title="Bring forward"><i class="fa-solid fa-arrow-up"></i></div>
+                <div class="toggle-btn" id="layer-top" title="Bring to front"><i class="fa-solid fa-arrow-up-to-line"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="bottom-left-panel">
+        <div class="bottom-group">
+            <button id="zoom-out" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+            <span id="zoom-text">100%</span>
+            <button id="zoom-in" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="bottom-group">
+            <button id="undo-btn" title="Undo (Ctrl+Z)"><i class="fa-solid fa-rotate-left"></i></button>
+            <button id="redo-btn" title="Redo (Ctrl+Y)"><i class="fa-solid fa-rotate-right"></i></button>
+        </div>
+    </div>
+    
+    <canvas id="c"></canvas>
+    <script src="./renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "name": "my-whiteboard",
+  "productName": "My Whiteboard",
+  "version": "1.0.0",
+  "description": "A high-performance, infinite-canvas whiteboard desktop application with native file system saving, laser pointers, and Excalidraw-style erasing.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_GITHUB_USERNAME/my-whiteboard.git"
+  },
+  "keywords": [
+    "whiteboard",
+    "canvas",
+    "electron",
+    "fabricjs",
+    "drawing-app"
+  ],
+  "author": "Your Name Here",
+  "license": "MIT",
+  "build": {
+    "appId": "com.yourname.mywhiteboard",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "build/icon.ico"
+    }
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}

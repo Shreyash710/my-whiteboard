@@ -1,0 +1,4 @@
+"node_modules/" | Set-Content .gitignore -Encoding utf8
+"dist/" | Add-Content .gitignore -Encoding utf8
+"build/win-unpacked/" | Add-Content .gitignore -Encoding utf8
+".DS_Store" | Add-Content .gitignore -Encoding utf8
