@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <title>My Local Whiteboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <!-- pdf.js: parses/renders PDFs. It runs page parsing in its own Web Worker
+         (see workerSrc below), so it does not block the renderer/main thread. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -95,7 +104,7 @@
         }
         .toggle-btn.selected { background: var(--active-bg); color: var(--active-text); border-color: var(--active-text); }
         input[type="range"] { width: 100%; cursor: pointer; }
-        #image-loader { display: none; }
+        #image-loader, #pdf-loader { display: none; }
 
         #bottom-left-panel {
             position: absolute; bottom: 15px; left: 15px; z-index: 10;
@@ -138,6 +147,8 @@
         <button id="text-tool" title="Text (T or 7)"><i class="fa-solid fa-font"></i><span class="shortcut-badge">7</span></button>
         <label for="image-loader" class="icon-btn" title="Image (8)"><i class="fa-regular fa-image"></i><span class="shortcut-badge">8</span></label>
         <input type="file" id="image-loader" accept="image/*">
+        <label for="pdf-loader" class="icon-btn" title="Import PDF"><i class="fa-regular fa-file-pdf"></i></label>
+        <input type="file" id="pdf-loader" accept="application/pdf,.pdf">
         <button id="eraser-tool" title="Eraser (E or 9)"><i class="fa-solid fa-eraser"></i><span class="shortcut-badge">9</span></button>
         <div class="divider"></div>
         <button id="laser-tool" title="Laser Pointer (K or 0)"><i class="fa-solid fa-wand-magic-sparkles"></i><span class="shortcut-badge">0</span></button>

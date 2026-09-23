@@ -589,6 +589,71 @@ document.getElementById('image-loader').addEventListener('change', function(e) {
     reader.readAsDataURL(file); this.value = ''; document.getElementById('select-tool').click();
 });
 
+// --- PDF IMPORT ---
+// Renders page 1 of a PDF to an offscreen <canvas> via pdf.js, turns that into a
+// Data URL, then hands it to fabric.Image exactly like the existing image import
+// flow. pdf.js does its heavy parsing off the main thread (see the workerSrc
+// setup in index.html), and everything here is async, so the UI never freezes.
+async function importPdfAsImage(file) {
+    if (!window.pdfjsLib) {
+        console.error('pdf.js failed to load; cannot import PDF.');
+        return;
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+
+    // getDocument() + page.render() are both async and run their parsing work
+    // in pdf.js's worker thread, not on the renderer's main thread.
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1); // first page only
+
+    // Render at 2x for a crisp result on high-DPI screens; Fabric will scale
+    // the resulting image down to fit the board anyway.
+    const renderScale = 2;
+    const viewport = page.getViewport({ scale: renderScale });
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = viewport.width;
+    offscreen.height = viewport.height;
+    const ctx = offscreen.getContext('2d');
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    const dataUrl = offscreen.toDataURL('image/png');
+
+    fabric.Image.fromURL(dataUrl, function (img) {
+        // Same placement/scaling logic as the existing image import, so a
+        // dropped-in PDF page behaves identically to any other image:
+        // selectable, movable, scalable, and drawn in normal canvas order
+        // (so pen/shape/text tools added afterwards sit on top of it).
+        let center = {
+            x: (canvas.width / 2) / canvas.getZoom() - canvas.viewportTransform[4] / canvas.getZoom(),
+            y: (canvas.height / 2) / canvas.getZoom() - canvas.viewportTransform[5] / canvas.getZoom()
+        };
+        if (img.width > 800) img.scaleToWidth(800);
+        img.set({
+            left: center.x - (img.getScaledWidth() / 2),
+            top: center.y - (img.getScaledHeight() / 2),
+            // tag it so other code (export, file-type checks, etc.) can tell
+            // a PDF-derived image apart from a plain imported image if needed
+            isPdfPage: true
+        });
+        canvas.add(img);
+        canvas.sendToBack(img); // PDFs are usually reference material to draw over
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+        saveHistory();
+    });
+}
+
+document.getElementById('pdf-loader').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    importPdfAsImage(file).catch(err => console.error('PDF import failed:', err));
+    this.value = '';
+    document.getElementById('select-tool').click();
+});
+
 // Sync UI when selecting objects
 canvas.on('selection:created', syncUI);
 canvas.on('selection:updated', syncUI);
